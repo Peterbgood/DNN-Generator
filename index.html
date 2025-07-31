@@ -77,18 +77,6 @@
             border-left: 2px solid #ddd;
             margin-bottom: 15px;
         }
-        .add-btn {
-            background-color: #28a745;
-            color: white;
-            padding: 5px 10px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            margin-top: 10px;
-        }
-        .add-btn:hover {
-            background-color: #218838;
-        }
         button {
             background-color: #007bff;
             color: white;
@@ -187,6 +175,17 @@
                 <input type="text" id="commonFileName" value="layout.ascx" placeholder="Enter file name (e.g., layout.ascx)">
             </div>
             <div class="form-group">
+                <label for="wrapperElement">Wrapper Element:</label>
+                <select id="wrapperElement">
+                    <option value="section">Section</option>
+                    <option value="footer">Footer</option>
+                    <option value="div">Div</option>
+                    <option value="main">Main</option>
+                    <option value="article">Article</option>
+                    <option value="aside">Aside</option>
+                </select>
+            </div>
+            <div class="form-group">
                 <label for="numContainers">Number of Containers:</label>
                 <input type="number" id="numContainers" value="1" min="1" onchange="updateContainerInputs()">
             </div>
@@ -218,6 +217,8 @@
                 containerDiv.className = 'form-group';
                 containerDiv.innerHTML = `
                     <h3>Container ${i}</h3>
+                    <label for="idPrefix${i}">ID Prefix (e.g., CTA, Box):</label>
+                    <input type="text" id="idPrefix${i}" placeholder="Enter ID prefix for columns (optional)">
                     <label for="containerType${i}">Container Type:</label>
                     <select id="containerType${i}">
                         <option value="container">Container</option>
@@ -256,17 +257,29 @@
             const numCols = parseInt(document.getElementById(`numCols${containerIndex}_${rowIndex}`).value) || 1;
             const colInputs = document.getElementById(`colInputs${containerIndex}_${rowIndex}`);
             colInputs.innerHTML = '';
+            const idPrefix = document.getElementById(`idPrefix${containerIndex}`).value.trim();
+            const isFirstColumn = containerIndex === 1 && rowIndex === 1 && numCols >= 1;
             for (let k = 1; k <= numCols; k++) {
                 const colDiv = document.createElement('div');
                 colDiv.className = 'form-group';
+                const defaultId = isFirstColumn && k === 1 
+                    ? 'ContentPane'
+                    : idPrefix 
+                        ? `${idPrefix.charAt(0).toUpperCase()}${idPrefix.slice(1).toLowerCase()}${numberToWord(k)}`
+                        : `ContentPane${containerIndex}R${rowIndex}C${k}`;
                 colDiv.innerHTML = `
                     <label for="colClass${containerIndex}_${rowIndex}_${k}">Column Class (e.g., col, col-md, col-lg, col-md-12):</label>
                     <input type="text" id="colClass${containerIndex}_${rowIndex}_${k}" value="col" placeholder="Enter column class">
-                    <label for="colId${containerIndex}_${rowIndex}_${k}">Column ID:</label>
-                    <input type="text" id="colId${containerIndex}_${rowIndex}_${k}" value="ContentPane${containerIndex}R${rowIndex}C${k}" placeholder="Enter column ID">
+                    <label for="colId${containerIndex}_${rowIndex}_${k}">Column ID${isFirstColumn && k === 1 ? ' (defaults to ContentPane)' : ''}:</label>
+                    <input type="text" id="colId${containerIndex}_${rowIndex}_${k}" value="${defaultId}" placeholder="Enter column ID">
                 `;
                 colInputs.appendChild(colDiv);
             }
+        }
+
+        function numberToWord(num) {
+            const words = ['One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve'];
+            return num <= 12 ? words[num - 1] : `Col${num}`;
         }
 
         function generateContainer() {
@@ -331,18 +344,23 @@ ${directive}
 
         function generateCommonParts() {
             const numContainers = parseInt(document.getElementById('numContainers').value) || 1;
-            const fileName = document.getElementById('commonFileName').value.trim().endsWith('.ascx') 
-                ? document.getElementById('commonFileName').value.trim() 
-                : document.getElementById('commonFileName').value.trim() + '.ascx';
+            const wrapperElement = document.getElementById('wrapperElement').value;
+            let fileName = document.getElementById('commonFileName').value.trim();
+            fileName = fileName.endsWith('.ascx') ? fileName : `${fileName}.ascx`;
+
+            // Track used IDs to ensure uniqueness
+            const usedIds = new Set(['ContentPane']);
+            let contentPaneAssigned = false;
 
             let containerCode = `
 <%@ Control Language="C#" AutoEventWireup="false" Explicit="True" Inherits="DotNetNuke.UI.Containers.Container" %>
 
-<section>
+<${wrapperElement}>
 `;
             for (let i = 1; i <= numContainers; i++) {
                 const containerType = document.getElementById(`containerType${i}`).value;
                 const containerClasses = document.getElementById(`containerClasses${i}`).value.trim();
+                const idPrefix = document.getElementById(`idPrefix${i}`).value.trim();
                 const numRows = parseInt(document.getElementById(`numRows${i}`).value) || 1;
                 const classAttr = containerClasses ? ` class="${containerType} ${containerClasses}"` : ` class="${containerType}"`;
                 containerCode += `  <div${classAttr}>\n`;
@@ -351,8 +369,29 @@ ${directive}
                     containerCode += `    <div class="row">\n`;
                     const numCols = parseInt(document.getElementById(`numCols${i}_${j}`).value) || 1;
                     for (let k = 1; k <= numCols; k++) {
+                        let colId = document.getElementById(`colId${i}_${j}_${k}`).value.trim();
+                        // Sanitize ID to remove invalid characters
+                        colId = colId.replace(/[^a-zA-Z0-9]/g, '');
+                        // Assign ContentPane to first column of first row of first container if not overridden
+                        if (i === 1 && j === 1 && k === 1 && !colId) {
+                            colId = 'ContentPane';
+                            contentPaneAssigned = true;
+                        }
+                        // If user didn't specify ID, generate one based on prefix or fallback
+                        if (!colId) {
+                            colId = idPrefix 
+                                ? `${idPrefix.charAt(0).toUpperCase()}${idPrefix.slice(1).toLowerCase()}${numberToWord(k)}`
+                                : `ContentPane${i}R${j}C${k}`;
+                        }
+                        // Ensure ID uniqueness
+                        let baseId = colId;
+                        let suffix = 1;
+                        while (usedIds.has(colId)) {
+                            colId = `${baseId}_${suffix}`;
+                            suffix++;
+                        }
+                        usedIds.add(colId);
                         const colClass = document.getElementById(`colClass${i}_${j}_${k}`).value.trim();
-                        const colId = document.getElementById(`colId${i}_${j}_${k}`).value.trim();
                         containerCode += `      <div class="${colClass}" id="${colId}" runat="server"></div>\n`;
                     }
                     containerCode += `    </div>\n`;
@@ -360,7 +399,7 @@ ${directive}
                 
                 containerCode += `  </div>\n`;
             }
-            containerCode += `</section>`;
+            containerCode += `</${wrapperElement}>`;
 
             const outputDiv = document.getElementById('output');
             outputDiv.textContent = containerCode;
