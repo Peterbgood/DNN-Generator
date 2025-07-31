@@ -113,6 +113,74 @@
         .download-btn:hover {
             background-color: #5a6268;
         }
+        .accordion {
+            margin-bottom: 15px;
+        }
+        .accordion-item {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+        .accordion-header {
+            background: #f8f9fa;
+            padding: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .accordion-header:hover {
+            background: #e9ecef;
+        }
+        .accordion-content {
+            display: none;
+            padding: 15px;
+        }
+        .accordion-content.active {
+            display: block;
+        }
+        .tooltip {
+            position: relative;
+            display: inline-block;
+            margin-left: 5px;
+            cursor: help;
+        }
+        .tooltip .tooltip-text {
+            visibility: hidden;
+            width: 200px;
+            background-color: #333;
+            color: white;
+            text-align: center;
+            border-radius: 4px;
+            padding: 5px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .tooltip:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+        .preview {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .preview div {
+            border: 1px dashed #007bff;
+            padding: 5px;
+            margin: 5px;
+        }
+        .hidden {
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -189,7 +257,11 @@
                 <label for="numContainers">Number of Containers:</label>
                 <input type="number" id="numContainers" value="1" min="1" onchange="updateContainerInputs()">
             </div>
-            <div id="containerInputs" class="dynamic-inputs"></div>
+            <div id="containerInputs" class="accordion"></div>
+            <div id="structurePreview" class="preview" style="display: none;">
+                <h3>Structure Preview</h3>
+                <div id="previewContent"></div>
+            </div>
             <button onclick="generateCommonParts()">Generate Common Parts</button>
         </div>
         <div id="output"></div>
@@ -198,6 +270,9 @@
     </div>
 
     <script>
+        // Track column selections for naming
+        let columnSelectionHistory = [];
+
         function showTab(tabId) {
             document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
@@ -206,6 +281,16 @@
             document.getElementById('output').style.display = 'none';
             document.querySelector('.copy-btn').style.display = 'none';
             document.querySelector('.download-btn').style.display = 'none';
+            if (tabId === 'common-parts') {
+                updateContainerInputs();
+            }
+        }
+
+        function toggleAccordion(header) {
+            const content = header.nextElementSibling;
+            content.classList.toggle('active');
+            const arrow = header.querySelector('span');
+            arrow.textContent = content.classList.contains('active') ? '▲' : '▼';
         }
 
         function updateContainerInputs() {
@@ -214,25 +299,58 @@
             containerInputs.innerHTML = '';
             for (let i = 1; i <= numContainers; i++) {
                 const containerDiv = document.createElement('div');
-                containerDiv.className = 'form-group';
+                containerDiv.className = 'accordion-item';
                 containerDiv.innerHTML = `
-                    <h3>Container ${i}</h3>
-                    <label for="idPrefix${i}">ID Prefix (e.g., CTA, Box):</label>
-                    <input type="text" id="idPrefix${i}" placeholder="Enter ID prefix for columns (optional)">
-                    <label for="containerType${i}">Container Type:</label>
-                    <select id="containerType${i}">
-                        <option value="container">Container</option>
-                        <option value="container-fluid">Container-fluid</option>
-                    </select>
-                    <label for="containerClasses${i}">Additional Classes (e.g., mt-4 locations):</label>
-                    <input type="text" id="containerClasses${i}" placeholder="Enter classes">
-                    <label for="numRows${i}">Number of Rows:</label>
-                    <input type="number" id="numRows${i}" value="1" min="1" onchange="updateRowInputs(${i})">
-                    <div id="rowInputs${i}" class="dynamic-inputs"></div>
+                    <div class="accordion-header" onclick="toggleAccordion(this)">
+                        Container ${i} <span>▼</span>
+                    </div>
+                    <div class="accordion-content">
+                        <div class="form-group">
+                            <label for="wrapContainer${i}">Wrap Container in Div:
+                                <span class="tooltip">?<span class="tooltip-text">Choose whether to wrap this container in a div with a class.</span></span>
+                            </label>
+                            <select id="wrapContainer${i}" onchange="toggleWrapperClass(${i})">
+                                <option value="none">None</option>
+                                <option value="yes">Yes</option>
+                            </select>
+                        </div>
+                        <div class="form-group wrapper-class-input hidden" id="wrapperClassGroup${i}">
+                            <label for="containerWrapperClass${i}">Wrapper Class:
+                                <span class="tooltip">?<span class="tooltip-text">Specify a class for the wrapper div (e.g., wrapper-class).</span></span>
+                            </label>
+                            <input type="text" id="containerWrapperClass${i}" placeholder="Enter wrapper class">
+                        </div>
+                        <div class="form-group">
+                            <label for="containerType${i}">Container Type:</label>
+                            <select id="containerType${i}">
+                                <option value="container">Container</option>
+                                <option value="container-fluid">Container-fluid</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="containerClasses${i}">Additional Classes (e.g., mt-4 locations):
+                                <span class="tooltip">?<span class="tooltip-text">Add Bootstrap or custom classes for styling.</span></span>
+                            </label>
+                            <input type="text" id="containerClasses${i}" placeholder="Enter classes">
+                        </div>
+                        <div class="form-group">
+                            <label for="numRows${i}">Number of Rows:</label>
+                            <input type="number" id="numRows${i}" value="1" min="1" onchange="updateRowInputs(${i})">
+                        </div>
+                        <div id="rowInputs${i}" class="dynamic-inputs"></div>
+                    </div>
                 `;
                 containerInputs.appendChild(containerDiv);
                 updateRowInputs(i);
             }
+            updatePreview();
+        }
+
+        function toggleWrapperClass(containerIndex) {
+            const wrapSelect = document.getElementById(`wrapContainer${containerIndex}`);
+            const wrapperClassGroup = document.getElementById(`wrapperClassGroup${containerIndex}`);
+            wrapperClassGroup.classList.toggle('hidden', wrapSelect.value === 'none');
+            updatePreview();
         }
 
         function updateRowInputs(containerIndex) {
@@ -251,35 +369,93 @@
                 rowInputs.appendChild(rowDiv);
                 updateColInputs(containerIndex, j);
             }
+            updatePreview();
         }
 
         function updateColInputs(containerIndex, rowIndex) {
             const numCols = parseInt(document.getElementById(`numCols${containerIndex}_${rowIndex}`).value) || 1;
             const colInputs = document.getElementById(`colInputs${containerIndex}_${rowIndex}`);
             colInputs.innerHTML = '';
-            const idPrefix = document.getElementById(`idPrefix${containerIndex}`).value.trim();
             const isFirstColumn = containerIndex === 1 && rowIndex === 1 && numCols >= 1;
+            // Update column selection history
+            if (!columnSelectionHistory.some(h => h.container === containerIndex && h.row === rowIndex)) {
+                columnSelectionHistory.push({ container: containerIndex, row: rowIndex, numCols });
+            }
+            // Generate default ID based on number of columns
+            const colPrefixMap = {
+                1: 'OneCol',
+                2: 'TwoCol',
+                3: 'ThreeCol',
+                4: 'FourCol',
+                5: 'FiveCol',
+                6: 'SixCol',
+                7: 'SevenCol',
+                8: 'EightCol',
+                9: 'NineCol',
+                10: 'TenCol',
+                11: 'ElevenCol',
+                12: 'TwelveCol'
+            };
+            const prefix = colPrefixMap[numCols] || `Col${numCols}`;
+            const counts = columnSelectionHistory.filter(h => h.numCols === numCols).length;
+            const suffix = counts > 1 ? counts - 1 : '';
             for (let k = 1; k <= numCols; k++) {
                 const colDiv = document.createElement('div');
                 colDiv.className = 'form-group';
                 const defaultId = isFirstColumn && k === 1 
                     ? 'ContentPane'
-                    : idPrefix 
-                        ? `${idPrefix.charAt(0).toUpperCase()}${idPrefix.slice(1).toLowerCase()}${numberToWord(k)}`
-                        : `ContentPane${containerIndex}R${rowIndex}C${k}`;
+                    : `${prefix}${numberToWord(k)}${suffix}`;
+                const defaultClass = numCols <= 12 ? `col-md-${Math.floor(12 / numCols)}` : 'col';
                 colDiv.innerHTML = `
-                    <label for="colClass${containerIndex}_${rowIndex}_${k}">Column Class (e.g., col, col-md, col-lg, col-md-12):</label>
-                    <input type="text" id="colClass${containerIndex}_${rowIndex}_${k}" value="col" placeholder="Enter column class">
+                    <label for="colClass${containerIndex}_${rowIndex}_${k}">Column Class (e.g., col-md-6):
+                        <span class="tooltip">?<span class="tooltip-text">Specify Bootstrap column classes (e.g., col-md-4).</span></span>
+                    </label>
+                    <input type="text" id="colClass${containerIndex}_${rowIndex}_${k}" value="${defaultClass}" placeholder="Enter column class">
                     <label for="colId${containerIndex}_${rowIndex}_${k}">Column ID${isFirstColumn && k === 1 ? ' (defaults to ContentPane)' : ''}:</label>
                     <input type="text" id="colId${containerIndex}_${rowIndex}_${k}" value="${defaultId}" placeholder="Enter column ID">
                 `;
                 colInputs.appendChild(colDiv);
             }
+            updatePreview();
         }
 
         function numberToWord(num) {
             const words = ['One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve'];
             return num <= 12 ? words[num - 1] : `Col${num}`;
+        }
+
+        function updatePreview() {
+            const numContainers = parseInt(document.getElementById('numContainers').value) || 1;
+            const previewContent = document.getElementById('previewContent');
+            previewContent.innerHTML = '';
+            for (let i = 1; i <= numContainers; i++) {
+                const wrapSelect = document.getElementById(`wrapContainer${i}`);
+                const wrapperClass = document.getElementById(`containerWrapperClass${i}`);
+                const containerDiv = document.createElement('div');
+                let innerDiv = containerDiv;
+                if (wrapSelect && wrapSelect.value === 'yes' && wrapperClass && wrapperClass.value.trim()) {
+                    const wrapperDiv = document.createElement('div');
+                    wrapperDiv.textContent = `Wrapper (${wrapperClass.value.trim()})`;
+                    innerDiv = wrapperDiv;
+                    containerDiv.appendChild(wrapperDiv);
+                }
+                innerDiv.textContent = innerDiv === containerDiv ? `Container ${i}` : innerDiv.textContent + ` > Container ${i}`;
+                const numRows = parseInt(document.getElementById(`numRows${i}`)?.value) || 1;
+                for (let j = 1; j <= numRows; j++) {
+                    const rowDiv = document.createElement('div');
+                    rowDiv.textContent = `Row ${j}`;
+                    const numCols = parseInt(document.getElementById(`numCols${i}_${j}`)?.value) || 1;
+                    for (let k = 1; k <= numCols; k++) {
+                        const colDiv = document.createElement('div');
+                        const colId = document.getElementById(`colId${i}_${j}_${k}`)?.value || `Col${k}`;
+                        colDiv.textContent = `Column ${k} (${colId})`;
+                        rowDiv.appendChild(colDiv);
+                    }
+                    innerDiv.appendChild(rowDiv);
+                }
+                previewContent.appendChild(containerDiv);
+            }
+            document.getElementById('structurePreview').style.display = previewContent.innerHTML ? 'block' : 'none';
         }
 
         function generateContainer() {
@@ -358,16 +534,38 @@ ${directive}
 <${wrapperElement}>
 `;
             for (let i = 1; i <= numContainers; i++) {
+                const wrapSelect = document.getElementById(`wrapContainer${i}`).value;
+                const wrapperClass = document.getElementById(`containerWrapperClass${i}`)?.value.trim() || '';
                 const containerType = document.getElementById(`containerType${i}`).value;
                 const containerClasses = document.getElementById(`containerClasses${i}`).value.trim();
-                const idPrefix = document.getElementById(`idPrefix${i}`).value.trim();
                 const numRows = parseInt(document.getElementById(`numRows${i}`).value) || 1;
                 const classAttr = containerClasses ? ` class="${containerType} ${containerClasses}"` : ` class="${containerType}"`;
-                containerCode += `  <div${classAttr}>\n`;
+
+                if (wrapSelect === 'yes' && wrapperClass) {
+                    containerCode += `  <div class="${wrapperClass}">\n`;
+                }
+                containerCode += `    <div${classAttr}>\n`;
                 
                 for (let j = 1; j <= numRows; j++) {
-                    containerCode += `    <div class="row">\n`;
+                    containerCode += `      <div class="row">\n`;
                     const numCols = parseInt(document.getElementById(`numCols${i}_${j}`).value) || 1;
+                    const colPrefixMap = {
+                        1: 'OneCol',
+                        2: 'TwoCol',
+                        3: 'ThreeCol',
+                        4: 'FourCol',
+                        5: 'FiveCol',
+                        6: 'SixCol',
+                        7: 'SevenCol',
+                        8: 'EightCol',
+                        9: 'NineCol',
+                        10: 'TenCol',
+                        11: 'ElevenCol',
+                        12: 'TwelveCol'
+                    };
+                    const prefix = colPrefixMap[numCols] || `Col${numCols}`;
+                    const counts = columnSelectionHistory.filter(h => h.numCols === numCols && h.container <= i && (h.container < i || h.row <= j)).length;
+                    const suffix = counts > 1 ? counts - 1 : '';
                     for (let k = 1; k <= numCols; k++) {
                         let colId = document.getElementById(`colId${i}_${j}_${k}`).value.trim();
                         // Sanitize ID to remove invalid characters
@@ -377,27 +575,28 @@ ${directive}
                             colId = 'ContentPane';
                             contentPaneAssigned = true;
                         }
-                        // If user didn't specify ID, generate one based on prefix or fallback
+                        // If user didn't specify ID, use generic naming
                         if (!colId) {
-                            colId = idPrefix 
-                                ? `${idPrefix.charAt(0).toUpperCase()}${idPrefix.slice(1).toLowerCase()}${numberToWord(k)}`
-                                : `ContentPane${i}R${j}C${k}`;
+                            colId = `${prefix}${numberToWord(k)}${suffix}`;
                         }
                         // Ensure ID uniqueness
                         let baseId = colId;
-                        let suffix = 1;
+                        let idSuffix = 1;
                         while (usedIds.has(colId)) {
-                            colId = `${baseId}_${suffix}`;
-                            suffix++;
+                            colId = `${baseId}_${idSuffix}`;
+                            idSuffix++;
                         }
                         usedIds.add(colId);
                         const colClass = document.getElementById(`colClass${i}_${j}_${k}`).value.trim();
-                        containerCode += `      <div class="${colClass}" id="${colId}" runat="server"></div>\n`;
+                        containerCode += `        <div class="${colClass}" id="${colId}" runat="server"></div>\n`;
                     }
-                    containerCode += `    </div>\n`;
+                    containerCode += `      </div>\n`;
                 }
                 
-                containerCode += `  </div>\n`;
+                containerCode += `    </div>\n`;
+                if (wrapSelect === 'yes' && wrapperClass) {
+                    containerCode += `  </div>\n`;
+                }
             }
             containerCode += `</${wrapperElement}>`;
 
