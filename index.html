@@ -18,6 +18,28 @@
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid #ddd;
+            margin-bottom: 20px;
+        }
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            font-weight: bold;
+            color: #007bff;
+        }
+        .tab.active {
+            background-color: #007bff;
+            color: white;
+            border-radius: 4px 4px 0 0;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
         .form-group {
             margin-bottom: 15px;
         }
@@ -27,6 +49,7 @@
             font-weight: bold;
         }
         input[type="text"],
+        input[type="number"],
         select {
             width: 100%;
             padding: 8px;
@@ -48,6 +71,23 @@
         .checkbox-group input[type="checkbox"] {
             width: auto;
             margin: 0;
+        }
+        .dynamic-inputs {
+            padding-left: 20px;
+            border-left: 2px solid #ddd;
+            margin-bottom: 15px;
+        }
+        .add-btn {
+            background-color: #28a745;
+            color: white;
+            padding: 5px 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        .add-btn:hover {
+            background-color: #218838;
         }
         button {
             background-color: #007bff;
@@ -90,57 +130,145 @@
 <body>
     <div class="container">
         <h1>DNN Container Generator</h1>
-        <div class="form-group">
-            <label for="containerType">Container Type:</label>
-            <select id="containerType">
-                <option value="standard">Standard (standard.ascx)</option>
-                <option value="card">Card (card.ascx)</option>
-            </select>
+        <div class="tabs">
+            <div class="tab active" onclick="showTab('containers')">Containers</div>
+            <div class="tab" onclick="showTab('common-parts')">Common Parts</div>
         </div>
-        <div class="form-group">
-            <label for="containerClass">Container Class Name:</label>
-            <input type="text" id="containerClass" value="standard_container" placeholder="Enter container class name">
+        <div id="containers" class="tab-content active">
+            <div class="form-group">
+                <label for="containerType">Container Type:</label>
+                <select id="containerType">
+                    <option value="standard">Standard (standard.ascx)</option>
+                    <option value="card">Card (card.ascx)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="containerClass">Container Class Name:</label>
+                <input type="text" id="containerClass" value="standard_container" placeholder="Enter container class name">
+            </div>
+            <div class="form-group">
+                <label for="paneId">Content Pane ID:</label>
+                <input type="text" id="paneId" value="ContentPane" placeholder="Enter content pane ID">
+            </div>
+            <div class="form-group">
+                <label for="paneClass">Content Pane Class:</label>
+                <input type="text" id="paneClass" value="Content" placeholder="Enter content pane class">
+            </div>
+            <div class="form-group">
+                <label for="language">Language:</label>
+                <select id="language">
+                    <option value="C#">C#</option>
+                    <option value="VB">VB</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="autoEventWireup">AutoEventWireup:</label>
+                <select id="autoEventWireup">
+                    <option value="false">False</option>
+                    <option value="true">True</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="explicit">Explicit:</label>
+                <select id="explicit">
+                    <option value="True">True</option>
+                    <option value="False">False</option>
+                </select>
+            </div>
+            <div class="form-group checkbox-group">
+                <input type="checkbox" id="displayNone">
+                <label for="displayNone">Include display: none;</label>
+            </div>
+            <button onclick="generateContainer()">Generate Container</button>
         </div>
-        <div class="form-group">
-            <label for="paneId">Content Pane ID:</label>
-            <input type="text" id="paneId" value="ContentPane" placeholder="Enter content pane ID">
+        <div id="common-parts" class="tab-content">
+            <div class="form-group">
+                <label for="commonFileName">File Name (ends with .ascx):</label>
+                <input type="text" id="commonFileName" value="layout.ascx" placeholder="Enter file name (e.g., layout.ascx)">
+            </div>
+            <div class="form-group">
+                <label for="numContainers">Number of Containers:</label>
+                <input type="number" id="numContainers" value="1" min="1" onchange="updateContainerInputs()">
+            </div>
+            <div id="containerInputs" class="dynamic-inputs"></div>
+            <button onclick="generateCommonParts()">Generate Common Parts</button>
         </div>
-        <div class="form-group">
-            <label for="paneClass">Content Pane Class:</label>
-            <input type="text" id="paneClass" value="Content" placeholder="Enter content pane class">
-        </div>
-        <div class="form-group">
-            <label for="language">Language:</label>
-            <select id="language">
-                <option value="C#">C#</option>
-                <option value="VB">VB</option>
-            </select>
-        </div>
-        <div class="form-group">
-            <label for="autoEventWireup">AutoEventWireup:</label>
-            <select id="autoEventWireup">
-                <option value="false">False</option>
-                <option value="true">True</option>
-            </select>
-        </div>
-        <div class="form-group">
-            <label for="explicit">Explicit:</label>
-            <select id="explicit">
-                <option value="True">True</option>
-                <option value="False">False</option>
-            </select>
-        </div>
-        <div class="form-group checkbox-group">
-            <input type="checkbox" id="displayNone">
-            <label for="displayNone">Include display: none;</label>
-        </div>
-        <button onclick="generateContainer()">Generate Container</button>
         <div id="output"></div>
         <button class="copy-btn" onclick="copyToClipboard()" style="display: none;">Copy to Clipboard</button>
-        <button class="download-btn" onclick="downloadContainer()" style="display: none;">Download</button>
+        <button class="download-btn" onclick="downloadOutput()" style="display: none;">Download</button>
     </div>
 
     <script>
+        function showTab(tabId) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            document.querySelector(`.tab[onclick="showTab('${tabId}')"]`).classList.add('active');
+            document.getElementById(tabId).classList.add('active');
+            document.getElementById('output').style.display = 'none';
+            document.querySelector('.copy-btn').style.display = 'none';
+            document.querySelector('.download-btn').style.display = 'none';
+        }
+
+        function updateContainerInputs() {
+            const numContainers = parseInt(document.getElementById('numContainers').value) || 1;
+            const containerInputs = document.getElementById('containerInputs');
+            containerInputs.innerHTML = '';
+            for (let i = 1; i <= numContainers; i++) {
+                const containerDiv = document.createElement('div');
+                containerDiv.className = 'form-group';
+                containerDiv.innerHTML = `
+                    <h3>Container ${i}</h3>
+                    <label for="containerType${i}">Container Type:</label>
+                    <select id="containerType${i}">
+                        <option value="container">Container</option>
+                        <option value="container-fluid">Container-fluid</option>
+                    </select>
+                    <label for="containerClasses${i}">Additional Classes (e.g., mt-4 locations):</label>
+                    <input type="text" id="containerClasses${i}" placeholder="Enter classes">
+                    <label for="numRows${i}">Number of Rows:</label>
+                    <input type="number" id="numRows${i}" value="1" min="1" onchange="updateRowInputs(${i})">
+                    <div id="rowInputs${i}" class="dynamic-inputs"></div>
+                `;
+                containerInputs.appendChild(containerDiv);
+                updateRowInputs(i);
+            }
+        }
+
+        function updateRowInputs(containerIndex) {
+            const numRows = parseInt(document.getElementById(`numRows${containerIndex}`).value) || 1;
+            const rowInputs = document.getElementById(`rowInputs${containerIndex}`);
+            rowInputs.innerHTML = '';
+            for (let j = 1; j <= numRows; j++) {
+                const rowDiv = document.createElement('div');
+                rowDiv.className = 'form-group';
+                rowDiv.innerHTML = `
+                    <h4>Row ${j}</h4>
+                    <label for="numCols${containerIndex}_${j}">Number of Columns:</label>
+                    <input type="number" id="numCols${containerIndex}_${j}" value="1" min="1" onchange="updateColInputs(${containerIndex}, ${j})">
+                    <div id="colInputs${containerIndex}_${j}" class="dynamic-inputs"></div>
+                `;
+                rowInputs.appendChild(rowDiv);
+                updateColInputs(containerIndex, j);
+            }
+        }
+
+        function updateColInputs(containerIndex, rowIndex) {
+            const numCols = parseInt(document.getElementById(`numCols${containerIndex}_${rowIndex}`).value) || 1;
+            const colInputs = document.getElementById(`colInputs${containerIndex}_${rowIndex}`);
+            colInputs.innerHTML = '';
+            for (let k = 1; k <= numCols; k++) {
+                const colDiv = document.createElement('div');
+                colDiv.className = 'form-group';
+                colDiv.innerHTML = `
+                    <label for="colClass${containerIndex}_${rowIndex}_${k}">Column Class (e.g., col, col-md, col-lg, col-md-12):</label>
+                    <input type="text" id="colClass${containerIndex}_${rowIndex}_${k}" value="col" placeholder="Enter column class">
+                    <label for="colId${containerIndex}_${rowIndex}_${k}">Column ID:</label>
+                    <input type="text" id="colId${containerIndex}_${rowIndex}_${k}" value="ContentPane${containerIndex}R${rowIndex}C${k}" placeholder="Enter column ID">
+                `;
+                colInputs.appendChild(colDiv);
+            }
+        }
+
         function generateContainer() {
             const containerType = document.getElementById('containerType').value;
             const containerClass = document.getElementById('containerClass').value.trim();
@@ -201,6 +329,49 @@ ${directive}
             downloadBtn.setAttribute('data-filename', downloadFileName);
         }
 
+        function generateCommonParts() {
+            const numContainers = parseInt(document.getElementById('numContainers').value) || 1;
+            const fileName = document.getElementById('commonFileName').value.trim().endsWith('.ascx') 
+                ? document.getElementById('commonFileName').value.trim() 
+                : document.getElementById('commonFileName').value.trim() + '.ascx';
+
+            let containerCode = `
+<%@ Control Language="C#" AutoEventWireup="false" Explicit="True" Inherits="DotNetNuke.UI.Containers.Container" %>
+
+<section>
+`;
+            for (let i = 1; i <= numContainers; i++) {
+                const containerType = document.getElementById(`containerType${i}`).value;
+                const containerClasses = document.getElementById(`containerClasses${i}`).value.trim();
+                const numRows = parseInt(document.getElementById(`numRows${i}`).value) || 1;
+                const classAttr = containerClasses ? ` class="${containerType} ${containerClasses}"` : ` class="${containerType}"`;
+                containerCode += `  <div${classAttr}>\n`;
+                
+                for (let j = 1; j <= numRows; j++) {
+                    containerCode += `    <div class="row">\n`;
+                    const numCols = parseInt(document.getElementById(`numCols${i}_${j}`).value) || 1;
+                    for (let k = 1; k <= numCols; k++) {
+                        const colClass = document.getElementById(`colClass${i}_${j}_${k}`).value.trim();
+                        const colId = document.getElementById(`colId${i}_${j}_${k}`).value.trim();
+                        containerCode += `      <div class="${colClass}" id="${colId}" runat="server"></div>\n`;
+                    }
+                    containerCode += `    </div>\n`;
+                }
+                
+                containerCode += `  </div>\n`;
+            }
+            containerCode += `</section>`;
+
+            const outputDiv = document.getElementById('output');
+            outputDiv.textContent = containerCode;
+            outputDiv.style.display = 'block';
+            document.querySelector('.copy-btn').style.display = 'inline-block';
+            const downloadBtn = document.querySelector('.download-btn');
+            downloadBtn.style.display = 'inline-block';
+            downloadBtn.textContent = `Download as ${fileName}`;
+            downloadBtn.setAttribute('data-filename', fileName);
+        }
+
         function copyToClipboard() {
             const output = document.getElementById('output').textContent;
             navigator.clipboard.writeText(output).then(() => {
@@ -210,7 +381,7 @@ ${directive}
             });
         }
 
-        function downloadContainer() {
+        function downloadOutput() {
             const output = document.getElementById('output').textContent;
             const downloadFileName = document.querySelector('.download-btn').getAttribute('data-filename');
             const blob = new Blob([output], { type: 'text/plain' });
@@ -221,6 +392,9 @@ ${directive}
             a.click();
             URL.revokeObjectURL(url);
         }
+
+        // Initialize container inputs on page load
+        updateContainerInputs();
     </script>
 </body>
 </html>
